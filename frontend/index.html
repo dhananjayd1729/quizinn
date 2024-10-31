@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:disabled {
+            background-color: #cccccc;
+        }
+        .question {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+        }
+        .status {
+            margin: 10px 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Quiz Generator</h1>
+        
+        <div>
+            <h2>Step 1: Upload File</h2>
+            <input type="file" id="fileInput" accept=".pdf,.docx">
+            <button onclick="uploadFile()">Upload</button>
+            <div id="uploadStatus" class="status"></div>
+            <div id="uploadedFileName" class="status"></div>
+        </div>
+
+        <div>
+            <h2>Step 2: Generate Quiz</h2>
+            <button id="generateButton" onclick="generateQuiz()">Generate Quiz</button>
+            <div id="quizStatus" class="status"></div>
+            <div id="quizResult"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentFileId = null;
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const uploadedFileName = document.getElementById('uploadedFileName');
+            const generateButton = document.getElementById('generateButton');
+
+            if (!fileInput.files.length) {
+                uploadStatus.textContent = 'Please select a file first.';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                uploadStatus.textContent = 'Uploading...';
+                const response = await fetch('http://localhost:3000/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log("data->", data)
+                    currentFileId = data.fileId;  
+                    localStorage.setItem('currentFileId', currentFileId);
+                    uploadStatus.textContent = `${data.fileName} uploaded successfully!`;
+                    uploadedFileName.textContent = `${data.fileName} uploaded successfully!`;
+                    generateButton.disabled = false;
+                }else {
+                    throw new Error(data.error || 'Upload failed');
+                }
+            } catch (error) {
+                uploadStatus.textContent = `Error: ${error.message}`;
+                generateButton.disabled = true;
+            }
+        }
+
+        async function generateQuiz() {
+            event.preventDefault();
+            const quizStatus = document.getElementById('quizStatus');
+            const quizResult = document.getElementById('quizResult');
+            const storedFileId = localStorage.getItem('currentFileId');
+            if (!storedFileId) {
+                quizStatus.textContent = 'Please upload a file first.';
+                return;
+            }
+
+            try {
+                quizStatus.textContent = 'Generating quiz...';
+                const response = await fetch('http://localhost:3000/generatequiz', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ fileId: parseInt(storedFileId) })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    displayQuiz(data.quiz.message.content);
+                    quizStatus.textContent = 'Quiz generated successfully!';
+                    localStorage.clear();
+                } else {
+                    throw new Error(data.error || 'Generation failed');
+                }
+            } catch (error) {
+                quizStatus.textContent = `Error: ${error.message}`;
+                quizResult.innerHTML = '';
+            }
+        }
+
+        function displayQuiz(content) {
+            const quizResult = document.getElementById('quizResult');
+            quizResult.innerHTML = '';
+
+            const questions = content.split('\n\n');
+            
+            questions.forEach(question => {
+                if (!question.trim()) return;
+
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                
+                const lines = question.split('\n');
+                const questionText = document.createElement('p');
+                questionText.textContent = lines[0];
+                questionDiv.appendChild(questionText);
+
+                const optionsList = document.createElement('div');
+                lines.slice(1).forEach(option => {
+                    if (option.trim()) {
+                        const optionDiv = document.createElement('div');
+                        optionDiv.textContent = option;
+                        optionsList.appendChild(optionDiv);
+                    }
+                });
+
+                questionDiv.appendChild(optionsList);
+                quizResult.appendChild(questionDiv);
+            });
+        }
+    </script>
+</body>
+</html>
