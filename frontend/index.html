@@ -64,6 +64,9 @@
 
     <script>
         let currentFileId = null;
+        const BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000' 
+            : 'https://quizinn.onrender.com';
 
         async function uploadFile() {
             const fileInput = document.getElementById('fileInput');
@@ -81,18 +84,17 @@
 
             try {
                 uploadStatus.textContent = 'Uploading...';
-                const response = await fetch('http://localhost:3000/upload', {
+                const response = await fetch(`${BASE_URL}/upload`, {
                     method: 'POST',
                     body: formData
                 });
 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log("data->", data)
                     currentFileId = data.fileId;  
                     localStorage.setItem('currentFileId', currentFileId);
-                    uploadStatus.textContent = `${data.fileName} uploaded successfully!`;
-                    uploadedFileName.textContent = `${data.fileName} uploaded successfully!`;
+                    uploadStatus.textContent = `file uploaded successfully!`;
+                    uploadedFileName.textContent = `${currentFileId}-file`;
                     generateButton.disabled = false;
                 }else {
                     throw new Error(data.error || 'Upload failed');
@@ -115,7 +117,7 @@
 
             try {
                 quizStatus.textContent = 'Generating quiz...';
-                const response = await fetch('http://localhost:3000/generatequiz', {
+                const response = await fetch(`${BASE_URL}/generatequiz`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
